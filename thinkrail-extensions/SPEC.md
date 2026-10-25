@@ -26,24 +26,33 @@ extension's `skillPackages` — they keep staging and loading until an extension
 
 ## Shape — two entrypoints, no root barrel
 
-- `./server` — default export `defineServerExtension({ name, title?, description?, extensions, childExtensions?, skillPackages? })`
+- `./server` — default export `defineServerExtension({ name, title?, description?, extensions, sessionExtensions?, childExtensions?, skillPackages? })`
   (`title` / `description` are Settings display copy).
   `extensions` / `childExtensions` are pi `ExtensionFactory`s the host composes into every parent session /
   the curated child set, registered as named `InlineExtension`s so pi diagnostics keep an identity.
+  `sessionExtensions(session)` returns further parent factories built from one session's host services
+  ([[module-extension-api]]).
   `skillPackages` are **package specifiers** whose `pi.skills` directories the host stages — explicit module
   identity for the build step, never inferred from a function. Server-only; may value-import pi.
 - `./web` — default export `defineWebExtension({ name, toolRenderers })` keyed by tool name, **plus named
   exports** for components the host uses directly (visualize exports `MermaidView` for fenced mermaid in
   chat markdown). Browser-only; never value-imports pi; heavy renderers stay lazy.
 
-The `define*` objects and the named web exports are the whole contract. Future capabilities (wire methods,
-panels, settings) are added to these objects when a real consumer needs them.
+The `define*` objects and the named exports are the whole contract:
+- named `./web` exports are components the host renders directly;
+- named `./server` exports are **pure helpers** the host needs for the capability's host-owned lifecycle
+  (ask-user-question re-exports its tool name, acknowledgement and stop texts, and envelope builder for
+  restart repair and late answers). The host reaches them only through `packages/server/src/extensions`.
+
+Future capabilities (wire methods, panels, settings) are added to these objects when a real consumer needs
+them.
 
 **The property fixed now so later extensions never force a rewrite — runtime/lifecycle ownership:**
 separate server and browser entrypoints; no imports of host internals; host-owned scoped state
 (per-session owners such as subagents and background commands, per-workspace services) is supplied through
 explicit seams and never created by an extension. Per-session owners therefore stay in the host's
-session manager, outside the static registry.
+session manager. An extension reaches their services only through `sessionExtensions(session)`, the
+explicit per-session seam. The descriptor itself stays static.
 
 ## Host UI SDK
 
@@ -119,4 +128,5 @@ the default tool renderer until step 2 — never visualize, whose renderer exist
 | extension | pi capability | notes |
 | --- | --- | --- |
 | `visualize` | `@thinkrail/pi-visualize` | shipped. `./server` injects the **strict** mermaid validator (`mermaid` at the web renderer's catalog version, initialised through `linkedom` — required: DOMPurify needs a real `document` for flowchart/class/state/gantt/mindmap, verified under Bun). `./web` carries the diagram/comparison cards and exports `MermaidView`. The guarantee is syntax parsing, not SVG/layout success; the browser renderer keeps its fallback. |
+| `ask-user-question` | `@thinkrail/pi-ask-user-question` | shipped. `./server` is session-only: `sessionExtensions` composes the portable tool with ThinkRail's wording and an asker over the host's answer mailbox (`awaitToolResponse`), and its named pure exports feed the host's restart repair and late answers. `./web` is the questionnaire card, fed entirely by the host through `ToolRenderProps.interaction`; the plan page renders its named `AskUserQuestionCard`. [[module-ext-ask-user-question]]. |
 | `web-access` | third-party `pi-web-access` | planned next: wraps the npm package with the existing renderers and `headlessSearchPolicy`, removing the last packager special case. |

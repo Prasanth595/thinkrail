@@ -79,9 +79,9 @@ import {
 	ANSWERABILITY_ERRORS,
 	ASK_USER_QUESTION_TOOL_NAME,
 	type AskUserQuestionWaiters,
+	askUserQuestionSessionServices,
 	assessAnswerability,
 	buildAnswersMessage,
-	createAskUserQuestionTool,
 	createAskUserQuestionWaiters,
 	hasQuestionAck,
 } from "./askUserQuestion";
@@ -713,7 +713,7 @@ function enabledExtensionMissing(session: AgentSession, disabled: ReadonlySet<st
 	);
 	return serverExtensions.some(
 		({ extension }) =>
-			extension.extensions.length > 0 &&
+			(extension.extensions.length > 0 || extension.sessionExtensions !== undefined) &&
 			!disabled.has(extension.name) &&
 			!present.has(extension.name),
 	);
@@ -1067,7 +1067,7 @@ async function prepareSessionEntry(
 			}
 		}
 		if (event.type === "turn_end") {
-			entry.askUserQuestionWaiters.persistTurn(event.toolResults);
+			entry.askUserQuestionWaiters.persistTurn(event.toolResults, event.message);
 			entry.commands.flushCompletions();
 			entry.subagents.flushCompletions();
 		}
@@ -1357,7 +1357,6 @@ async function createParentSessionInternal(
 		const result = await createAgentSession({
 			...options,
 			modelRuntime: generation.runtime,
-			customTools: [createAskUserQuestionTool(askUserQuestionWaiters)],
 			resourceLoader: await buildResourceLoader(
 				cwd,
 				settingsManager,
@@ -1368,6 +1367,7 @@ async function createParentSessionInternal(
 					createBackgroundCommandsExtension({ service: commands }),
 					...mcpHost.extensions,
 				],
+				askUserQuestionSessionServices(askUserQuestionWaiters),
 			),
 		});
 		session = result.session;

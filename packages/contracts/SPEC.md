@@ -198,17 +198,20 @@ default, narrow cross-ring guards, and the quit-confirmation rule both clients d
     **`AskUserQuestionAckDetails`** (the tool result's `details` used only when restart repair closes a
     dangling live-blocking call before attach) and **`AskUserAnswersDetails`** + the
     **`ASK_USER_ANSWERS_CUSTOM_TYPE`** constant, **`AskUserAnswersMessage`** (the correctly-paired
-    tag↔details shape the host's builder is compile-held to) and the shared **`isAskUserAnswersMessage`**
-    guard (all in `wsProtocol`, the value-bearing half): an eligible live reply becomes the native tool
+    tag↔details shape the host's builder is compile-held to), the shared **`isAskUserAnswersMessage`**
+    guard and **`readAskUserQuestionResult`** (a result from a tool-result envelope's `details` or a bare
+    result, else `null`; shared by the web `askState`, the host's interaction adapter and the card) (all
+    in `wsProtocol`, the value-bearing half): an eligible live reply becomes the native tool
     result; a `length`/`error`/`aborted` assistant call is terminal and never answerable; after restart, the
     reply travels as an `ask-user-answers` custom message paired by `details.toolCallId`.
     `WireCustomMessage.customType` itself stays
     `string` — the namespace is open (any pi extension can mint custom messages and they all cross the
     wire), so strictness lives at the producer + the guard, which validates the details *shape* (wire
     data is untrusted — another process, possibly another protocol version). The capability
-    is a **host-owned pi custom tool** (server `agent/askUserQuestion` — see its SPEC for the design
-    rationale); the chat renders the questionnaire **inline** and replies via `session.answerQuestion`
-    (correlated by the tool call id; rejected loud when the call is unknown/answered/superseded).
+    is the ask-user-question extension's tool ([[module-ext-ask-user-question]]), answered through the
+    host's mailbox (server `agent/askUserQuestion` — see its SPEC for the design rationale); the chat
+    renders the questionnaire **inline** and replies via `session.answerQuestion` (correlated by the tool
+    call id; rejected loud when the call is unknown/answered/superseded).
   - the **todo plan-review fix** wire types — the **`TODO_REVIEW_FIX_CUSTOM_TYPE`** constant,
     **`TodoReviewFixMessage`** (the tag↔details shape) + its **`isTodoReviewFixMessage`** guard (in
     `wsProtocol`), and **`ReviewFixDetails`** / **`ReviewFixComment`** (in `domain`): a plan-review

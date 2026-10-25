@@ -17,16 +17,36 @@ The host retains registration, lifecycle and ordering; `define*` helpers preserv
 ## Boundary
 
 - `./web` exposes `ToolStatus`, `ToolRenderProps`, `ToolRenderer`, `ToolSummary`, `ToolChrome`,
-  `ToolProminence`, `ToolRegistrationOptions`, `WebExtension`, `defineWebExtension`, and the pure
-  argument/result readers from `toolHelpers` and `toolResultContent`.
+  `ToolProminence`, `ToolRegistrationOptions`, `ToolInteraction`, `ToolInteractionState`,
+  `ToolRevealOptions`, `WebExtension`, `defineWebExtension`, and the pure argument/result readers from
+  `toolHelpers` and `toolResultContent`.
+- `ToolRenderProps.interaction` is optional. The host fills it only for tool calls it blocks on for the
+  person's response; today that is only `ask_user_question`. It carries:
+  - `state`: a `response` delivered outside the tool result (after a host restart), plus `superseded`
+    and `ended`;
+  - `respond(response)`;
+  - the chat's `focusScope`, so the card claims attention focus once per chat mount;
+  - `prepareLayoutChange`, which keeps the reader's place when the card changes size;
+  - `revealElement(element, ToolRevealOptions)` and `cancelAutomaticReveal()`;
+  - `focusComposer()`.
+
+  Without it, a renderer shows the call read-only from `result`, as in a subagent transcript. The
+  renderer stays props-driven: it never reaches the chat's contexts, store or transport. The shape is
+  generic over the response type, but support is per tool and lives in the host. Its DOM-typed members
+  are the reason the package's `lib` includes `DOM`; the package still never touches the DOM.
 - `WebExtension` is `{ name, toolRenderers }`, with each tool-name entry carrying a `renderer` and
   optional `ToolRegistrationOptions` under `options`. `defineWebExtension` is a typed identity helper:
   it preserves the descriptor and its inferred tool keys without registration or default injection.
 - `./server` exposes `ServerExtension` and `defineServerExtension`, with pi `ExtensionFactory` types
   only. Descriptors carry `name` (the identity — the Settings on/off switch and `disabledExtensions` key
   on it), optional display copy `title` / `description` for the Settings catalog, `extensions`, optional
-  `childExtensions` and optional `skillPackages` specifiers. Its identity helper preserves factories, order and optional-field absence; loading and
-  skill resolution remain host responsibilities.
+  `sessionExtensions`, optional `childExtensions` and optional `skillPackages` specifiers. Its identity
+  helper preserves factories, order and optional-field absence; loading and skill resolution remain host
+  responsibilities.
+- `sessionExtensions(session: ExtensionSessionServices) => ExtensionFactory[]` is how an extension uses
+  per-session state the host owns: the host calls it once per parent session with that session's
+  services. Today the services are `awaitToolResponse(toolCallId, signal)`, which resolves a
+  `ToolResponse`: `{kind: "response", value}`, `{kind: "deferred"}` or `{kind: "abandoned"}`.
 - The root is browser-safe and exposes only the web contract; it never re-exports the server half.
 - Workspace dependencies are `contracts` and, type-only, `@thinkrail/locales/react`'s `Translator`.
   React and pi are type-only contract dependencies; there are no React components, registry, DOM access,
